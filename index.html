@@ -30,9 +30,10 @@
     .fc-day-selected {
       background-color: #93c5fd !important;
     }
-    .fc-event {
+    .fc-day-booked {
       background-color: #f87171 !important;
-      border: none;
+      color: white !important;
+      pointer-events: none !important;
     }
     button {
       display: block;
@@ -60,8 +61,6 @@
 
     const calendarIdMap = {
       apt001: 'e9ddbc0f87d5f15ea1eee1cff5eca18af1e4a91648c86d2e4a4069c8709f3a8e@group.calendar.google.com',
-      apt002: 'apt002_calendar_id@group.calendar.google.com',
-      // Add more mappings as needed
     };
 
     const calendarId = calendarIdMap[a_id];
@@ -77,22 +76,33 @@
     let bookedDates = new Set();
     let selectedDates = new Set();
 
-    // Load booked dates from published Google Sheet
+    function parseDate(input) {
+      const parts = input.trim().split('/');
+      if (parts.length === 3) {
+        const [month, day, year] = parts;
+        return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      }
+      return new Date(input); // fallback
+    }
+
     async function fetchBookedDates() {
       const res = await fetch(SHEET_CSV_URL);
       const text = await res.text();
       const lines = text.split('\n').slice(1); // Skip header
 
       for (let line of lines) {
-        const [id, start, end] = line.split(',');
-        if (id?.trim() !== a_id) continue;
+        const [id, startRaw, endRaw] = line.split(',');
+        if (!id || id.trim() !== a_id) continue;
 
-        let s = new Date(start);
-        let e = new Date(end);
-        while (s <= e) {
-          const ymd = s.toISOString().split('T')[0];
+        const start = parseDate(startRaw);
+        const end = parseDate(endRaw);
+        if (isNaN(start) || isNaN(end)) continue;
+
+        let current = new Date(start);
+        while (current <= end) {
+          const ymd = current.toISOString().split('T')[0];
           bookedDates.add(ymd);
-          s.setDate(s.getDate() + 1);
+          current.setDate(current.getDate() + 1);
         }
       }
     }
@@ -112,7 +122,7 @@
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
-        callback: '', // set later
+        callback: '',
       });
       gisInited = true;
       maybeEnableCalendar();
@@ -145,15 +155,13 @@
               calendarId: calendarId,
               resource: event
             });
-            console.log("Booked:", dateStr);
           } catch (err) {
-            console.error("Error booking:", dateStr, err);
+            console.error("Booking error:", err);
           }
         }
         alert("Booking complete!");
         location.reload();
       };
-
       tokenClient.requestAccessToken();
     };
 
@@ -191,7 +199,7 @@
               if (dayDate < today) {
                 cell.classList.add('fc-day-past');
               } else if (bookedDates.has(date)) {
-                cell.classList.add('fc-day-past');
+                cell.classList.add('fc-day-booked');
               } else {
                 cell.classList.add('fc-day-available');
               }
