@@ -61,14 +61,13 @@
 
     const calendarIdMap = {
       apt001: 'e9ddbc0f87d5f15ea1eee1cff5eca18af1e4a91648c86d2e4a4069c8709f3a8e@group.calendar.google.com',
-      // Add more a_id : calendar_id mappings here
     };
 
     const calendarId = calendarIdMap[a_id];
     const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
     const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-    const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKf1SyYft1ClKgZgaaesA0PTf00lRi0Y4X9EHP30-uDzaWlMjz2HC4JTpXFAUDprxEUQ/exec'; // Your Web App URL
+    const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKf1SyYft1ClKgZgaaesA0PTf00lRi0Y4X9EHP30-uDzaWlMjz2HC4JTpXFAUDprxEUQ/exec'; // your actual deployed Web App URL
 
     let tokenClient;
     let gapiInited = false;
@@ -76,7 +75,6 @@
     let bookedDates = new Set();
     let selectedDates = new Set();
 
-    // Load bookings from Google Sheets
     async function fetchBookedDatesFromSheet() {
       try {
         const res = await fetch(`${SHEETS_WEBAPP_URL}?a_id=${a_id}`);
@@ -88,7 +86,8 @@
           const end = new Date(b.end);
           const current = new Date(start);
           while (current <= end) {
-            bookedDates.add(current.toISOString().split('T')[0]);
+            const iso = current.toISOString().split('T')[0];
+            bookedDates.add(iso);
             current.setDate(current.getDate() + 1);
           }
         });
@@ -97,7 +96,6 @@
       }
     }
 
-    // Load gapi
     function gapiLoaded() {
       gapi.load('client', async () => {
         await gapi.client.init({
@@ -109,7 +107,6 @@
       });
     }
 
-    // Load Google Identity Services
     function gisLoaded() {
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
@@ -126,7 +123,6 @@
       }
     }
 
-    // Render calendar
     async function initializeCalendar() {
       await fetchBookedDatesFromSheet();
 
@@ -177,19 +173,25 @@
       calendar.render();
     }
 
-    // Booking action
     document.getElementById('bookBtn').onclick = () => {
       tokenClient.callback = async (resp) => {
-        if (resp.error) throw resp;
+        if (resp.error) {
+          console.error("Token error", resp.error);
+          return;
+        }
 
         for (let dateStr of selectedDates) {
+          const start = dateStr;
+          const end = new Date(dateStr);
+          end.setDate(end.getDate() + 1); // Google Calendar uses exclusive end dates
+
           try {
             await gapi.client.calendar.events.insert({
               calendarId: calendarId,
               resource: {
                 summary: 'Booked',
-                start: { date: dateStr },
-                end: { date: dateStr }
+                start: { date: start },
+                end: { date: end.toISOString().split('T')[0] }
               }
             });
           } catch (err) {
