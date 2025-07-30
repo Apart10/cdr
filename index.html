@@ -26,13 +26,9 @@
   <script src="https://accounts.google.com/gsi/client"></script>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const a_id = urlParams.get('a_id');
-    const calendarIdMap = { apt001: 'YOUR_CALENDAR_ID@group.calendar.google.com' /* add more IDs */ };
-    const calendarId = calendarIdMap[a_id];
-
-    const CLIENT_ID = 'YOUR_CLIENT_ID';
-    const API_KEY = 'YOUR_API_KEY';
+    const calendarId = 'e9ddbc0f87d5f15ea1eee1cff5eca18af1e4a91648c86d2e4a4069c8709f3a8e@group.calendar.google.com';
+    const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
+    const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
     let tokenClient, gapiInited = false, gisInited = false;
@@ -45,21 +41,38 @@
         maybeInit();
       });
     }
+
     function gisLoaded() {
-      tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: '' });
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: ''
+      });
       gisInited = true;
       maybeInit();
     }
+
     function maybeInit() {
       if (gapiInited && gisInited) renderCalendar();
     }
-    window.onload = () => { gapiLoaded(); gisLoaded(); };
+
+    window.onload = () => {
+      gapiLoaded();
+      gisLoaded();
+    };
 
     document.getElementById('bookBtn').onclick = () => {
       tokenClient.callback = async (resp) => {
         if (resp.error) throw resp;
         for (let dateStr of selectedDates) {
-          await gapi.client.calendar.events.insert({ calendarId, resource: { summary: 'Booked', start: {date: dateStr}, end: {date: dateStr} } });
+          await gapi.client.calendar.events.insert({
+            calendarId,
+            resource: {
+              summary: 'Booked',
+              start: { date: dateStr },
+              end: { date: dateStr }
+            }
+          });
         }
         alert('Booking complete!');
         selectedDates.clear();
@@ -72,30 +85,48 @@
     function renderCalendar() {
       const calendarEl = document.getElementById('calendar');
       const calendar = new FullCalendar.Calendar(calendarEl, {
-        plugins: [ FullCalendarGlobalPlugins.googleCalendarPlugin ],
+        plugins: [ FullCalendarGoogleCalendar ],
         initialView: 'dayGridMonth',
         googleCalendarApiKey: API_KEY,
         events: { googleCalendarId: calendarId },
         selectable: false,
-        eventDidMount: info => bookedDates.add(info.event.startStr),
+        eventDidMount: info => {
+          bookedDates.add(info.event.startStr);
+        },
         dateClick: info => {
           const dateStr = info.dateStr;
           const today = new Date(); today.setHours(0,0,0,0);
           if (info.date < today || bookedDates.has(dateStr)) return;
+
           const cell = info.dayEl;
-          if (selectedDates.has(dateStr)) { selectedDates.delete(dateStr); cell.classList.replace('fc-day-selected','fc-day-available'); }
-          else { selectedDates.add(dateStr); cell.classList.replace('fc-day-available','fc-day-selected'); }
-          document.getElementById('bookBtn').disabled = !selectedDates.size;
+          if (selectedDates.has(dateStr)) {
+            selectedDates.delete(dateStr);
+            cell.classList.remove('fc-day-selected');
+            cell.classList.add('fc-day-available');
+          } else {
+            selectedDates.add(dateStr);
+            cell.classList.remove('fc-day-available');
+            cell.classList.add('fc-day-selected');
+          }
+
+          document.getElementById('bookBtn').disabled = selectedDates.size === 0;
         },
         datesSet: () => {
           setTimeout(() => {
             document.querySelectorAll('.fc-daygrid-day').forEach(cell => {
               const date = cell.getAttribute('data-date');
               if (!date) return;
-              cell.classList.remove('fc-day-available','fc-day-selected','fc-day-past');
-              const d = new Date(date), today = new Date(); today.setHours(0,0,0,0);
-              if (d < today) cell.classList.add('fc-day-past');
-              else if (!bookedDates.has(date)) cell.classList.add('fc-day-available');
+              const d = new Date(date);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+
+              cell.classList.remove('fc-day-past', 'fc-day-selected', 'fc-day-available');
+
+              if (d < today) {
+                cell.classList.add('fc-day-past');
+              } else if (!bookedDates.has(date)) {
+                cell.classList.add('fc-day-available');
+              }
             });
           }, 500);
         }
