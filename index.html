@@ -1,124 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Apartment Calendar Booking</title>
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Apartment Booking Calendar</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
   <style>
-    body { font-family: sans-serif; background: #f9fafb; padding:20px;}
-    #calendar { max-width:900px; margin:auto; background:white; padding:20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-    .fc-day-past { background:#f0f0f0!important; pointer-events:none; opacity:0.6;}
-    .fc-day-available { background:#d1fae5!important;}
-    .fc-day-selected { background:#93c5fd!important;}
-    .fc-event { background:#f87171!important; border:none; pointer-events:none;}
-    button { display:block; margin:20px auto; padding:10px 20px; font-size:16px; border:none; background:#3b82f6; color:white; border-radius:8px;}
+    body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+    #calendar { max-width: 600px; margin: auto; }
+    #bookBtn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    .fc-daygrid-day {
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">Apartment Calendar</h2>
-  <div id="calendar"></div>
-  <button id="bookBtn" disabled>Book Selected Dates</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client"></script>
+<h2>Apartment Booking Calendar (apt001)</h2>
+<div id="calendar"></div>
+<button id="bookBtn" disabled>Book Selected Dates</button>
 
-  <script>
-    const a_id = new URLSearchParams(location.search).get('a_id') || 'apt001';
-    const calendarId = 'e9ddbc0f87d5f15ea1eee1cff5eca18af1e4a91648c86d2e4a4069c8709f3a8e@group.calendar.google.com';
-    const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
-    const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
-    const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-    const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKf1SyYft1ClKgZgaaesA0PTf00lRi0Y4X9EHP30-uDzaWlMjz2HC4JTpXFAUDprxEUQ/exec';
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script>
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxKf1SyYft1ClKgZgaaesA0PTf00lRi0Y4X9EHP30-uDzaWlMjz2HC4JTpXFAUDprxEUQ/exec';
+  const a_id = 'apt001';
 
-    let bookedDates = new Set(), selectedDates = new Set(), tokenClient, gapiInited=false, gisInited=false;
+  let bookedDates = new Set();
+  let selectedDates = new Set();
+  let calendar;
 
-    async function fetchBooked() {
-      bookedDates.clear();
-      try {
-        const res = await fetch(`${SHEETS_WEBAPP_URL}?a_id=${a_id}`);
-        const data = await res.json();
-        (data.bookings||[]).forEach(b => {
-          let s = new Date(b.start), e = new Date(b.end);
-          while (s <= e) {
-            bookedDates.add(s.toISOString().split('T')[0]);
-            s.setDate(s.getDate()+1);
-          }
-        });
-      } catch(e){ console.error(e);}
+  function formatYMD(date) {
+    return date.toISOString().split('T')[0];
+  }
+
+  async function fetchBookings() {
+    const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
+    const data = await res.json();
+    return data.bookings || [];
+  }
+
+  function expandDates(start, end) {
+    const out = [];
+    const current = new Date(start);
+    const last = new Date(end);
+    while (current <= last) {
+      out.push(formatYMD(new Date(current)));
+      current.setDate(current.getDate() + 1);
     }
+    return out;
+  }
 
-    function formatYMD(d){ return d.toISOString().split('T')[0]; }
+  function toggleDateSelection(dateStr, el) {
+    if (selectedDates.has(dateStr)) {
+      selectedDates.delete(dateStr);
+      el.style.backgroundColor = '#b0f2b6'; // green
+      el.style.color = '#000';
+    } else {
+      selectedDates.add(dateStr);
+      el.style.backgroundColor = '#4a90e2'; // blue
+      el.style.color = 'white';
+    }
+    document.getElementById('bookBtn').disabled = selectedDates.size === 0;
+  }
 
-    function gapiLoaded(){
-      gapi.load('client', async()=> {
-        await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"]});
-        gapiInited=true; maybeInit();
-      });
-    }
-    function gisLoaded(){
-      tokenClient = google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID, scope:SCOPES, callback:''});
-      gisInited=true; maybeInit();
-    }
-    function maybeInit(){
-      if (gapiInited && gisInited){
-        initCalendar();
+  async function initCalendar() {
+    const bookings = await fetchBookings();
+    bookedDates = new Set();
+
+    bookings.forEach(b => {
+      expandDates(b.start, b.end).forEach(d => bookedDates.add(d));
+    });
+
+    const calendarEl = document.getElementById('calendar');
+    calendarEl.innerHTML = ''; // Clear previous calendar
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      selectable: false,
+      dayCellDidMount: function(info) {
+        const date = info.date;
+        const dateStr = formatYMD(date);
+        const el = info.el;
+
+        if (date < new Date().setHours(0,0,0,0)) {
+          el.style.backgroundColor = '#eee';
+          el.style.color = '#999';
+          el.style.pointerEvents = 'none';
+          return;
+        }
+
+        if (bookedDates.has(dateStr)) {
+          el.style.backgroundColor = '#ff4d4d';
+          el.style.color = 'white';
+          el.style.pointerEvents = 'none';
+          return;
+        }
+
+        el.style.backgroundColor = '#b0f2b6'; // green
+        el.style.color = '#000';
+        el.style.cursor = 'pointer';
+
+        el.addEventListener('click', () => toggleDateSelection(dateStr, el));
       }
-    }
-    window.onload = ()=>{ gapiLoaded(); gisLoaded(); };
+    });
 
-    async function initCalendar(){
-      await fetchBooked();
-      const calEl = document.getElementById('calendar');
-      calEl.innerHTML = '';
-      const calendar = new FullCalendar.Calendar(calEl, {
-        initialView:'dayGridMonth', selectable:true,
-        dateClick: info=>{
-          const d = info.dateStr, today = formatYMD(new Date());
-          if (d<today || bookedDates.has(d)) return;
-          const cell = info.dayEl;
-          if (selectedDates.has(d)){
-            selectedDates.delete(d); cell.classList.remove('fc-day-selected'); cell.classList.add('fc-day-available');
-          } else {
-            selectedDates.add(d); cell.classList.remove('fc-day-available'); cell.classList.add('fc-day-selected');
-          }
-          document.getElementById('bookBtn').disabled = selectedDates.size===0;
-        },
-        datesSet: ()=>{ setTimeout(renderCells,300); }
-      });
-      calendar.render();
-    }
+    calendar.render();
+  }
 
-    function renderCells(){
-      document.querySelectorAll('.fc-daygrid-day').forEach(cell=>{
-        const d = cell.getAttribute('data-date');
-        const day = new Date(d), today=new Date(); today.setHours(0,0,0,0);
-        cell.classList.remove('fc-day-past','fc-day-available','fc-day-selected');
-        if (day<today) cell.classList.add('fc-day-past');
-        else if (bookedDates.has(d)){
-          cell.style.background='#f87171'; cell.style.pointerEvents='none';
-        } else {
-          cell.classList.add('fc-day-available');
-        }
-      });
-    }
+  async function submitBooking() {
+    if (selectedDates.size === 0) return;
 
-    document.getElementById('bookBtn').onclick = ()=>{
-      tokenClient.callback = async resp=>{
-        if (resp.error) return console.error(resp.error);
-        for (let d of selectedDates){
-          const end = new Date(d); end.setDate(end.getDate()+1);
-          await gapi.client.calendar.events.insert({
-            calendarId, resource:{ summary:'Booked', start:{date:d}, end:{date:formatYMD(end)} }
-          });
-        }
-        alert('Booking done');
-        selectedDates.clear();
-        location.reload();
-      };
-      tokenClient.requestAccessToken();
-    };
-  </script>
+    const sortedDates = Array.from(selectedDates).sort();
+    const start = sortedDates[0];
+    const end = sortedDates[sortedDates.length - 1];
+
+    const response = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a_id, start, end })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      alert('Booking successful!');
+      selectedDates.clear();
+      document.getElementById('bookBtn').disabled = true;
+      await initCalendar(); // Reload calendar
+    } else {
+      alert('Booking failed: ' + result.error);
+    }
+  }
+
+  document.getElementById('bookBtn').addEventListener('click', submitBooking);
+  initCalendar();
+</script>
 </body>
 </html>
