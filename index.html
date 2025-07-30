@@ -1,99 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Apartment Booking Calendar</title>
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet"/>
+  <meta charset="utf-8">
+  <title>Apartment Booking</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.4/main.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:10px; }
-    #calendar { max-width:600px; margin:auto; }
-    #bookBtn { margin-top:10px; width:100%; padding:10px; font-size:16px; background:#3b82f6; color:white; border:none; border-radius:5px; }
-    .fc-daygrid-day { cursor:pointer; transition: background-color .3s; }
+    body { font-family: sans-serif; margin: 10px; }
+    #calendar { max-width: 900px; margin: auto; }
+    #confirm { margin-top: 10px; display: block; width: 100%; padding: 10px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h2>Apartment Booking Calendar (apt001)</h2>
-  <div id="calendar"></div>
-  <button id="bookBtn" disabled>Book Selected Dates</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <script>
-    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzSMFqhIgEYSXQBZPl66rEdi2MGEl7wK7D5lwaOQilUzifnueXlBNG8hz-8TqLcu7Sh0A/exec';
-    const a_id = 'apt001';
-    let bookedDates = new Set(), selectedDates = new Set(), calendar;
+<h2>Book Apartment</h2>
+<label>Apartment ID: <input type="text" id="a_id" value="apt001"></label>
+<div id="calendar"></div>
+<button id="confirm">Book Selected Dates</button>
 
-    function formatYMD(d){ return d.toISOString().split('T')[0]; }
+<script>
+const scriptURL = 'https://script.google.com/macros/s/AKfycbxNeoew4ijkCI7jP9RFGNmwWKEUJxI5N8GmT0qkHJ9503pT-lv10KuCPTRoHj8Wu8ix/exec';
+let selectedDates = [];
 
-    async function fetchBookings(){
-      const rsp = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
-      const json = await rsp.json();
-      return json.bookings||[];
+document.addEventListener('DOMContentLoaded', function () {
+  const calendarEl = document.getElementById('calendar');
+
+  let calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    selectable: true,
+    selectOverlap: false,
+    selectAllow: info => !info.startStr.includes('past'),
+    validRange: { start: new Date().toISOString().split("T")[0] },
+
+    select: function (info) {
+      selectedDates = [info.startStr, info.endStr];
+      alert(`Selected: ${info.startStr} to ${info.endStr}`);
+    },
+
+    events: async function (fetchInfo, successCallback) {
+      const a_id = document.getElementById("a_id").value;
+      let res = await fetch(`${scriptURL}?a_id=${a_id}`);
+      let booked = await res.json();
+      let events = booked.map(date => ({
+        title: "Booked",
+        start: date,
+        color: "red",
+        display: "background"
+      }));
+      successCallback(events);
+    }
+  });
+
+  calendar.render();
+
+  document.getElementById("confirm").addEventListener("click", async () => {
+    if (!selectedDates.length) {
+      alert("Please select a date range");
+      return;
     }
 
-    function expandDates(s,e){
-      const arr = [], cur=new Date(s), last=new Date(e);
-      while(cur<=last){ arr.push(formatYMD(cur)); cur.setDate(cur.getDate()+1); }
-      return arr;
-    }
+    const a_id = document.getElementById("a_id").value;
+    const payload = {
+      a_id: a_id,
+      start: selectedDates[0],
+      end: selectedDates[1],
+    };
 
-    function toggleDateSelection(d,el){
-      if(selectedDates.has(d)){
-        selectedDates.delete(d);
-        el.style.background='#b0f2b6'; el.style.color='#000';
-      } else {
-        selectedDates.add(d);
-        el.style.background='#4a90e2'; el.style.color='white';
-      }
-      bookBtn.disabled = selectedDates.size===0;
-    }
+    const res = await fetch(scriptURL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
 
-    async function initCalendar(){
-      const bookings = await fetchBookings();
-      bookedDates.clear();
-      bookings.forEach(b => expandDates(b.start,b.end).forEach(d=>bookedDates.add(d)));
+    alert("Booking saved!");
+    location.reload();
+  });
+});
+</script>
 
-      document.getElementById('calendar').innerHTML='';
-
-      calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-        initialView:'dayGridMonth',
-        dayCellDidMount: info => {
-          const d = info.date, ds=formatYMD(d), el=info.el, today=new Date().setHours(0,0,0,0);
-          el.classList.remove('fc-day-past','fc-day-available','fc-day-selected');
-          if(d<today){
-            el.style.background='#eee'; el.style.color='#999'; el.style.pointerEvents='none';
-          } else if(bookedDates.has(ds)){
-            el.style.background='#ff4d4d'; el.style.color='white'; el.style.pointerEvents='none';
-          } else {
-            el.style.background='#b0f2b6'; el.style.color='#000';
-            el.addEventListener('click',()=>toggleDateSelection(ds,el));
-          }
-        }
-      });
-      calendar.render();
-      selectedDates.clear();
-      bookBtn.disabled=true;
-    }
-
-    document.getElementById('bookBtn').onclick = async ()=>{
-      const arr = Array.from(selectedDates).sort();
-      const start = arr[0], end = arr[arr.length-1];
-      const r = await fetch(WEBAPP_URL,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({a_id,start,end})
-      });
-      const res = await r.json();
-      if(res.success){
-        alert('Booking successful!');
-        await initCalendar();
-      } else {
-        alert('Booking failed: '+res.error);
-      }
-    }
-
-    const bookBtn = document.getElementById('bookBtn');
-    initCalendar();
-  </script>
 </body>
 </html>
