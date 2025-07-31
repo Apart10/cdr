@@ -58,45 +58,43 @@
 
   <script>
     const a_id = new URLSearchParams(window.location.search).get('a_id') || 'apt001';
-    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzp6wLcS3FtTmwGVoTzudphdqcXaeRD7oghcIB2wqFVKg2DhbJAw-9CeVvUSJ4KihxK/exec';
+
+    // 🔗 Replace this with your actual deployed Apps Script web app URL
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyYkuPXhS1kUE7L1AgINi3_U8qvMemiiJo9-W_FeJISXbZ5gMONZYFD4L3kYzIgdzGp/exec';
+
     const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
     const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
+    let calendarId = '';
     let tokenClient;
     let gapiInited = false;
     let gisInited = false;
     let bookedDates = new Set();
     let selectedDates = new Set();
-    let calendarId = null;
 
-    async function fetchBookingData() {
-      try {
-        const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
-        const data = await res.json();
+    async function fetchBookedDates() {
+      const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
+      const data = await res.json();
 
-        if (!data.calendarId) {
-          alert('Calendar ID not found for ' + a_id);
-          return;
-        }
-
-        calendarId = data.calendarId;
-        bookedDates.clear();
-
-        data.bookings.forEach(b => {
-          const start = new Date(b.start);
-          const end = new Date(b.end);
-          let current = new Date(start);
-          while (current <= end) {
-            const ymd = current.toISOString().split('T')[0];
-            bookedDates.add(ymd);
-            current.setDate(current.getDate() + 1);
-          }
-        });
-      } catch (e) {
-        console.error('Error fetching booking data:', e);
-        alert('Failed to load booking data.');
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
       }
+
+      calendarId = data.calendarId;
+      bookedDates.clear();
+
+      data.bookings.forEach(b => {
+        const start = new Date(b.start);
+        const end = new Date(b.end);
+        let current = new Date(start);
+        while (current <= end) {
+          const ymd = current.toISOString().split('T')[0];
+          bookedDates.add(ymd);
+          current.setDate(current.getDate() + 1);
+        }
+      });
     }
 
     function gapiLoaded() {
@@ -121,13 +119,12 @@
     }
 
     function maybeEnableCalendar() {
-      if (gapiInited && gisInited && calendarId) {
+      if (gapiInited && gisInited) {
         initCalendar();
       }
     }
 
-    window.onload = async () => {
-      await fetchBookingData();
+    window.onload = () => {
       gapiLoaded();
       gisLoaded();
     };
@@ -139,7 +136,6 @@
     }
 
     document.getElementById('bookBtn').onclick = () => {
-      if (!calendarId) return alert("Calendar ID missing.");
       tokenClient.callback = async (resp) => {
         if (resp.error) throw (resp);
 
@@ -147,7 +143,7 @@
           const event = {
             summary: a_id,
             start: { date: dateStr },
-            end: { date: getNextDay(dateStr) },
+            end: { date: getNextDay(dateStr) }, // Google Calendar requires exclusive end
           };
 
           try {
@@ -166,6 +162,8 @@
     };
 
     async function initCalendar() {
+      await fetchBookedDates();
+
       const calendarEl = document.getElementById('calendar');
       const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
