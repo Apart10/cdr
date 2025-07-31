@@ -1,51 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Apartment Booking</title>
+  <title>Apartment Booking Calendar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <style>
-    /* same CSS as before */
-    body {
-      font-family: 'Helvetica Neue', sans-serif;
-      background: #f9fafb;
-      padding: 20px;
-    }
-    #calendar {
-      max-width: 900px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .fc-day-past {
-      background-color: #f0f0f0 !important;
-      pointer-events: none;
-      opacity: 0.6;
-    }
-    .fc-day-available {
-      background-color: #d1fae5 !important;
-    }
-    .fc-day-selected {
-      background-color: #93c5fd !important;
-    }
-    .fc-day-booked {
-      background-color: #f87171 !important;
-      color: white !important;
-      pointer-events: none !important;
-    }
-    button {
-      display: block;
-      margin: 20px auto;
-      background-color: #3b82f6;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      font-size: 16px;
-      border-radius: 8px;
-    }
+    body { font-family: 'Helvetica Neue', sans-serif; background: #f9fafb; padding:20px; }
+    #calendar { max-width:900px; margin:auto; background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+    .fc-day-past { background:#f0f0f0!important; pointer-events:none; opacity:0.6; }
+    .fc-day-available { background:#d1fae5!important; }
+    .fc-day-selected  { background:#93c5fd!important; }
+    .fc-day-booked    { background:#f87171!important; color:white!important; pointer-events:none!important; }
+    button { display:block; margin:20px auto; background:#3b82f6; color:white; padding:10px 20px; border:none; font-size:16px; border-radius:8px; }
   </style>
 </head>
 <body>
@@ -56,147 +23,90 @@
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-
   <script>
-    const a_id = new URLSearchParams(window.location.search).get('a_id') || 'apt001';
-    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwMK8Ttnm2JA8CKx7sK59HVec-FjIRS_QTLhFlgKmyGnJRGjcGvvgU2z_BnryaMHkdb/exec';
-    const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
-    const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
-    const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+    const a_id       = new URLSearchParams(window.location.search).get('a_id') || 'apt001';
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzp6wLcS3FtTmwGVoTzudphdqcXaeRD7oghcIB2wqFVKg2DhbJAw-9CeVvUSJ4KihxK/exec';
+    const CLIENT_ID  = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
+    const API_KEY    = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
+    const SCOPES     = 'https://www.googleapis.com/auth/calendar.events';
 
-    let calendarId = '';
-    let tokenClient;
-    let gapiInited = false;
-    let gisInited = false;
-    let bookedDates = new Set();
-    let selectedDates = new Set();
+    let tokenClient, gapiInited=false, gisInited=false;
+    let bookedDates=new Set(), selectedDates=new Set(), calendarId='';
 
-    async function fetchCalendarId() {
+    // Fetch calendarId & bookings in one call
+    async function fetchData() {
       const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
       const data = await res.json();
-      return data.calendarId || '';
-    }
-
-    async function fetchBookedDates() {
-      const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
-      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      calendarId = data.calendarId;
       bookedDates.clear();
-
       data.bookings.forEach(b => {
-        const start = new Date(b.start);
-        const end = new Date(b.end);
-        let current = new Date(start);
-        while (current <= end) {
-          const ymd = current.toISOString().split('T')[0];
-          bookedDates.add(ymd);
-          current.setDate(current.getDate() + 1);
+        let cur = new Date(b.start), end = new Date(b.end);
+        while (cur <= end) {
+          bookedDates.add(cur.toISOString().split('T')[0]);
+          cur.setDate(cur.getDate()+1);
         }
       });
     }
 
     function gapiLoaded() {
       gapi.load('client', async () => {
-        await gapi.client.init({
-          apiKey: API_KEY,
-          discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-        });
-        gapiInited = true;
-        maybeEnableCalendar();
+        await gapi.client.init({ apiKey: API_KEY, discoveryDocs:["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"] });
+        gapiInited=true; maybeEnable();
       });
     }
-
-    function gisLoaded() {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: '',
-      });
-      gisInited = true;
-      maybeEnableCalendar();
+    function gisLoaded(){
+      tokenClient = google.accounts.oauth2.initTokenClient({ client_id:CLIENT_ID, scope:SCOPES, callback:'' });
+      gisInited=true; maybeEnable();
     }
-
-    function maybeEnableCalendar() {
-      if (gapiInited && gisInited && calendarId) {
-        initCalendar();
-      }
-    }
+    function maybeEnable(){ if(gapiInited&&gisInited&&calendarId) initCalendar() }
 
     window.onload = async () => {
-      calendarId = await fetchCalendarId();
+      await fetchData();
       gapiLoaded();
       gisLoaded();
     };
 
-    document.getElementById('bookBtn').onclick = () => {
-      tokenClient.callback = async (resp) => {
-        if (resp.error) throw (resp);
+    function getNextDay(d){ let x=new Date(d); x.setDate(x.getDate()+1); return x.toISOString().split('T')[0]; }
 
-        for (let dateStr of selectedDates) {
-          const event = {
-            summary: a_id,
-            start: { date: dateStr },
-            end: { date: dateStr },
-          };
-
-          try {
-            await gapi.client.calendar.events.insert({
-              calendarId: calendarId,
-              resource: event
-            });
-          } catch (err) {
-            console.error("Booking error:", err);
-          }
+    document.getElementById('bookBtn').onclick=()=>{
+      tokenClient.callback=async resp=>{
+        if(resp.error) throw(resp);
+        for(let dateStr of selectedDates){
+          await gapi.client.calendar.events.insert({
+            calendarId:calendarId,
+            resource:{ summary:a_id, start:{date:dateStr}, end:{date:getNextDay(dateStr)} }
+          });
         }
-        alert("Booking complete!");
-        location.reload();
+        alert("Booking complete!"); location.reload();
       };
       tokenClient.requestAccessToken();
     };
 
-    async function initCalendar() {
-      await fetchBookedDates();
-
-      const calendarEl = document.getElementById('calendar');
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        selectable: true,
-        dateClick: function(info) {
-          const dateStr = info.dateStr;
-          const todayStr = new Date().toISOString().split('T')[0];
-
-          if (info.date < new Date(todayStr) || bookedDates.has(dateStr)) return;
-
-          const cell = info.dayEl;
-          if (selectedDates.has(dateStr)) {
-            selectedDates.delete(dateStr);
-            cell.classList.remove('fc-day-selected');
-            cell.classList.add('fc-day-available');
+    function initCalendar(){
+      const el=document.getElementById('calendar');
+      new FullCalendar.Calendar(el,{
+        initialView:'dayGridMonth', selectable:true,
+        dateClick: info=>{
+          let d=info.dateStr, today=(new Date()).toISOString().split('T')[0];
+          if(info.date<new Date(today)||bookedDates.has(d)) return;
+          const cell=info.dayEl;
+          if(selectedDates.has(d)){
+            selectedDates.delete(d); cell.classList.replace('fc-day-selected','fc-day-available');
           } else {
-            selectedDates.add(dateStr);
-            cell.classList.remove('fc-day-available');
-            cell.classList.add('fc-day-selected');
+            selectedDates.add(d); cell.classList.replace('fc-day-available','fc-day-selected');
           }
         },
-        datesSet: function() {
-          setTimeout(() => {
-            document.querySelectorAll('.fc-daygrid-day').forEach(cell => {
-              const date = cell.getAttribute('data-date');
-              const dayDate = new Date(date);
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              if (dayDate < today) {
-                cell.classList.add('fc-day-past');
-              } else if (bookedDates.has(date)) {
-                cell.classList.add('fc-day-booked');
-              } else {
-                cell.classList.add('fc-day-available');
-              }
-            });
-          }, 300);
-        }
-      });
-
-      calendar.render();
+        datesSet: ()=>setTimeout(()=>{
+          document.querySelectorAll('.fc-daygrid-day').forEach(cell=>{
+            const date=cell.getAttribute('data-date'), day=new Date(date), today=new Date();
+            today.setHours(0,0,0,0);
+            if(day<today) cell.classList.add('fc-day-past');
+            else if(bookedDates.has(date)) cell.classList.add('fc-day-booked');
+            else cell.classList.add('fc-day-available');
+          });
+        },300)
+      }).render();
     }
   </script>
 </body>
