@@ -86,15 +86,18 @@
       bookedDates.clear();
 
       data.bookings.forEach(b => {
-        const start = new Date(b.start);
-        const end = new Date(b.end);
-        let current = new Date(start);
-        while (current <= end) {
-          const ymd = current.toISOString().split('T')[0];
-          bookedDates.add(ymd);
-          current.setDate(current.getDate() + 1);
-        }
-      });
+  const start = new Date(b.start);
+  const end = new Date(b.end);
+  let current = new Date(start);
+  let exclusiveEnd = new Date(end);
+  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);  // make end exclusive
+
+  while (current < exclusiveEnd) {
+    const ymd = current.toISOString().split('T')[0];
+    bookedDates.add(ymd);
+    current.setDate(current.getDate() + 1);
+  }
+});
     }
 
     function gapiLoaded() {
