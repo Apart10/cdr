@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
-  <title>Apartment Booking Calendar</title>
+  <title>Apartment Booking</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <style>
+    /* same CSS as before */
     body {
       font-family: 'Helvetica Neue', sans-serif;
       background: #f9fafb;
@@ -58,25 +59,23 @@
 
   <script>
     const a_id = new URLSearchParams(window.location.search).get('a_id') || 'apt001';
-
-    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxpxtRS6eqOBd976P7EolVHn32lqKQW-QljwI-ElbKZ4YwQgdu80tb1YP5JvRvy4taU/exec'; // ← 🔁 Replace with Apps Script web app URL
-
-    const calendarIdMap = {
-      apt001: 'e9ddbc0f87d5f15ea1eee1cff5eca18af1e4a91648c86d2e4a4069c8709f3a8e@group.calendar.google.com',
-      apt002: 'f582243f397642b1eb50163a4e0455d20dbc43af087a8ac265b796fe26955f7b@group.calendar.google.com',
-      apt003: 'a21aa507e9078c83c55942dd94a11231af27047bc4bafdcfaf7c99e1c91bf378@group.calendar.google.com',
-    };
-
-    const calendarId = calendarIdMap[a_id];
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwMK8Ttnm2JA8CKx7sK59HVec-FjIRS_QTLhFlgKmyGnJRGjcGvvgU2z_BnryaMHkdb/exec';
     const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
     const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
     const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
+    let calendarId = '';
     let tokenClient;
     let gapiInited = false;
     let gisInited = false;
     let bookedDates = new Set();
     let selectedDates = new Set();
+
+    async function fetchCalendarId() {
+      const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
+      const data = await res.json();
+      return data.calendarId || '';
+    }
 
     async function fetchBookedDates() {
       const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
@@ -117,12 +116,13 @@
     }
 
     function maybeEnableCalendar() {
-      if (gapiInited && gisInited) {
+      if (gapiInited && gisInited && calendarId) {
         initCalendar();
       }
     }
 
-    window.onload = () => {
+    window.onload = async () => {
+      calendarId = await fetchCalendarId();
       gapiLoaded();
       gisLoaded();
     };
@@ -133,7 +133,7 @@
 
         for (let dateStr of selectedDates) {
           const event = {
-            summary: 'Booked',
+            summary: a_id,
             start: { date: dateStr },
             end: { date: dateStr },
           };
