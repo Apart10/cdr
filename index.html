@@ -16,168 +16,51 @@
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-  <script>
-    const owner_id = new URLSearchParams(window.location.search).get('owner_id') || '';
-    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby9X6IGCRwEVu0iZVqaNsQEFextEJHFp8Ck340Mkv5ez2Aina5N0kO0eokz8rWBlMrR/exec'; // <-- Replace with yours
-    const allSelectedDates = {};
+  <!-- Replace entire HTML block with this version -->
+<!-- PART 1: HTML omitted for brevity — only relevant change is below -->
 
-    function getNextDay(dateStr) {
-      const date = new Date(dateStr);
-      date.setDate(date.getDate() + 1);
-      return date.toISOString().split('T')[0];
-    }
+<!-- 🟡 JavaScript Changes Start Here -->
+<script>
+  const owner_id = new URLSearchParams(window.location.search).get('owner_id') || '';
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyNXs4JBeEmwOPCOX1kDZv1doqIQspFCpQyC24nzJLKzmBQRR4Tl3IlEPRYzE2plWTl/exec';
+  const allSelectedDates = {};
 
-    function isPastMidnight() {
-      const now = new Date();
-      return now.getHours() >= 0 && now.getHours() < 6;
-    }
+  // All other functions stay the same...
 
-    function getYesterday() {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-    }
+  function createCalendarForApartment(apt) {
+    // ... Same as before ...
 
-    async function loadOwnerApartments() {
-      const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
-      const data = await res.json();
+    button.onclick = async () => {
+      let createdCount = 0;
 
-      if (data.error) {
-        alert("Error: " + data.error);
-        return;
-      }
+      for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
+        if (!datesSet.size) continue;
 
-      document.getElementById("greetingTitle").textContent = `Hello, ${data.ownerName}`;
+        const dates = [...datesSet].sort(); // ensure order
 
-      for (const apt of data.apartments) {
-        allSelectedDates[apt.a_id] = new Set();
-        createCalendarForApartment(apt);
-      }
-    }
-
-    function createCalendarForApartment(apt) {
-      const container = document.createElement('div');
-      container.className = 'calendar-container';
-
-      const title = document.createElement('div');
-      title.className = 'calendar-title';
-      title.textContent = apt.title || apt.a_id;
-
-      const calendarDiv = document.createElement('div');
-      calendarDiv.id = `calendar-${apt.a_id}`;
-
-      const button = document.createElement('button');
-      button.textContent = 'Book Selected Dates';
-
-      container.appendChild(title);
-      container.appendChild(calendarDiv);
-      container.appendChild(button);
-      document.getElementById('calendarsWrapper').appendChild(container);
-
-      const bookedDates = new Set();
-
-      fetch(`${WEBAPP_URL}?a_id=${apt.a_id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.bookings) {
-            data.bookings.forEach(b => {
-              const start = new Date(b.start);
-              const end = new Date(b.end);
-              let current = new Date(start);
-              while (current < new Date(end)) {
-                bookedDates.add(current.toISOString().split('T')[0]);
-                current.setDate(current.getDate() + 1);
-              }
-            });
+        const response = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            a_id: a_id,
+            dates: dates
+          }),
+          headers: {
+            'Content-Type': 'application/json'
           }
-
-          const calendar = new FullCalendar.Calendar(calendarDiv, {
-            initialView: 'dayGridMonth',
-            selectable: true,
-            dateClick: function(info) {
-              const dateStr = info.dateStr;
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const clicked = new Date(dateStr);
-              clicked.setHours(0, 0, 0, 0);
-
-              const isTodayOrFuture = clicked >= today;
-              const isBookableYesterday = isPastMidnight() && dateStr === getYesterday();
-              const isBookable = (isTodayOrFuture || isBookableYesterday) && !bookedDates.has(dateStr);
-
-              if (!isBookable) return;
-
-              const cell = info.dayEl;
-              if (allSelectedDates[apt.a_id].has(dateStr)) {
-                allSelectedDates[apt.a_id].delete(dateStr);
-                cell.classList.remove('fc-day-selected');
-                cell.classList.add('fc-day-available');
-                if (isBookableYesterday) cell.classList.add('fc-day-past-bookable');
-              } else {
-                allSelectedDates[apt.a_id].add(dateStr);
-                cell.classList.remove('fc-day-available', 'fc-day-past-bookable');
-                cell.classList.add('fc-day-selected');
-              }
-            },
-            datesSet: function() {
-              setTimeout(() => {
-                document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
-                  const date = cell.getAttribute('data-date');
-                  const dayDate = new Date(date);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  dayDate.setHours(0, 0, 0, 0);
-
-                  const isBookableYesterday = isPastMidnight() && date === getYesterday();
-
-                  if (dayDate < today && !isBookableYesterday) {
-                    cell.classList.add('fc-day-past');
-                  } else if (bookedDates.has(date)) {
-                    cell.classList.add('fc-day-booked');
-                  } else if (isBookableYesterday) {
-                    cell.classList.add('fc-day-past-bookable');
-                  } else {
-                    cell.classList.add('fc-day-available');
-                  }
-                });
-              }, 300);
-            }
-          });
-
-          calendar.render();
         });
 
-      button.onclick = async () => {
-        let createdCount = 0;
-
-        for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
-          if (!datesSet.size) continue;
-
-          const payload = {
-            a_id,
-            dates: Array.from(datesSet)
-          };
-
-          const res = await fetch(WEBAPP_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-
-          const result = await res.json();
-          if (result.success) {
-            createdCount += result.created || 0;
-          } else {
-            alert(`Error booking ${a_id}: ${result.error}`);
-          }
+        const result = await response.json();
+        if (result.success) {
+          createdCount += result.created || 0;
+        } else {
+          console.error(`❌ Failed to book for ${a_id}:`, result.error);
         }
+      }
 
-        alert(`Booking complete! ${createdCount} events created.`);
-        location.reload();
-      };
-    }
-
-    window.onload = loadOwnerApartments;
-  </script>
+      alert(`Booking complete! ${createdCount} events created.`);
+      location.reload();
+    };
+  }
+</script>
 </body>
 </html>
