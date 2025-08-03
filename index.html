@@ -187,29 +187,28 @@
             }
           },
           datesSet: function() {
-            setTimeout(() => {
-              document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
-                const date = cell.getAttribute('data-date');
-                const dayDate = new Date(date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                dayDate.setHours(0, 0, 0, 0);
+  setTimeout(() => {
+    document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
+      const date = cell.getAttribute('data-date');
+      const dayDate = new Date(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dayDate.setHours(0, 0, 0, 0);
 
-                const isBookableYesterday = isPastMidnight() && date === getYesterday();
+      const isBookableYesterday = isPastMidnight() && date === getYesterday();
 
-                if (dayDate < today && !isBookableYesterday) {
-                  cell.classList.add('fc-day-past');
-                } else if (bookedDates.has(date)) {
-                  cell.classList.add('fc-day-booked');
-                } else if (isBookableYesterday) {
-                  cell.classList.add('fc-day-past-bookable');
-                } else {
-                  cell.classList.add('fc-day-available');
-                }
-              });
-            }, 300);
-          }
-        });
+      if (dayDate < today && !isBookableYesterday) {
+        cell.classList.add('fc-day-past');
+      } else if (bookedDates.has(date)) {
+        cell.classList.add('fc-day-booked');
+      } else if (isBookableYesterday) {
+        cell.classList.add('fc-day-past-bookable');
+      } else {
+        cell.classList.add('fc-day-available');
+      }
+    });
+  }, 300);
+}
 
         calendar.render();
       });
