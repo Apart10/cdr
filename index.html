@@ -230,10 +230,12 @@
   }
 
   try {
+    const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
+
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookings: payload })
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody
     });
 
     const result = await res.json();
