@@ -273,7 +273,7 @@ button.classList.add('book-btn'); // ✅ added class
   });
 
   // ✅ Only show spinner on clicked one
-  clickedButton.innerHTML = `<span class="spinner"></span> Booking...`;
+  clickedButton.innerHTML = `Booking... <span class="spinner"></span>`;
 
   try {
     const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
