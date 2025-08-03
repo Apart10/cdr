@@ -72,45 +72,13 @@
   <div id="calendarsWrapper"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script>
   const owner_id = new URLSearchParams(window.location.search).get('owner_id') || '';
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxSs9_NROeYziq48Pdu6tGZGSGTsmS-O-z_GrBA-iLSih6DlJofDUFJlvIQh0_KFBPk/exec';
-  const CLIENT_ID = '323959749239-cm17dnvhn8ala4anp3001arjtl2mn6tn.apps.googleusercontent.com';
-  const API_KEY = 'AIzaSyCpMKOsPAdDykkl1pXlL8j6RxTXyGPG4k8';
-  const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-
-  let gapiInited = false;
-  let gisInited = false;
-  let tokenClient;
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwWi-l3xdplyu_yxSv9c0GMn6Y902hpSfVIwSVfGchGrql6nwuejK9KYl7-PDYlHRfW/exec';
   const allSelectedDates = {};
 
-  window.onload = () => {
-    gapi.load('client', async () => {
-      await gapi.client.init({
-        apiKey: API_KEY,
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-      });
-      gapiInited = true;
-      maybeRenderCalendars();
-    });
-
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: '',
-    });
-
-    gisInited = true;
-  };
-
-  function maybeRenderCalendars() {
-    if (gapiInited && gisInited) {
-      loadOwnerApartments();
-    }
-  }
+  window.onload = loadOwnerApartments;
 
   async function loadOwnerApartments() {
     const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
@@ -200,7 +168,6 @@
 
             const isTodayOrFuture = clicked >= today;
             const isBookableYesterday = isPastMidnight() && dateStr === getYesterday();
-
             const isBookable = (isTodayOrFuture || isBookableYesterday) && !bookedDates.has(dateStr);
 
             if (!isBookable) return;
@@ -247,55 +214,36 @@
         calendar.render();
       });
 
-    button.onclick = () => {
-      tokenClient.callback = async (resp) => {
-        if (resp.error) throw resp;
+    button.onclick = async () => {
+      let createdCount = 0;
+      const payload = [];
 
-        let createdCount = 0;
+      for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
+        if (!datesSet.size) continue;
+        payload.push({ a_id, dates: Array.from(datesSet) });
+      }
 
-        for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
-          if (!datesSet.size) continue;
+      if (!payload.length) {
+        alert("Please select at least one date.");
+        return;
+      }
 
-          const res = await fetch(`${WEBAPP_URL}?a_id=${a_id}`);
-          const data = await res.json();
-          const calendarId = data.calendarId;
+      const res = await fetch(WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookings: payload })
+      });
 
-          if (!calendarId) {
-            console.warn(`No calendarId found for ${a_id}`);
-            continue;
-          }
+      const result = await res.json();
 
-          // Your full unchanged code above
-
-for (let dateStr of datesSet) {
-  const event = {
-    summary: a_id,  // ✅ fixed here
-    start: { date: dateStr },
-    end: { date: getNextDay(dateStr) }
-  };
-
-  try {
-    const result = await gapi.client.calendar.events.insert({
-      calendarId: calendarId,
-      resource: event
-    });
-    console.log(`✅ Created: ${dateStr} in ${a_id}`, result);
-    createdCount++;
-  } catch (err) {
-    console.error(`❌ Error for ${a_id} on ${dateStr}:`, err);
-  }
-}
-
-// Everything else remains unchanged
-        }
-
-        alert(`Booking complete! ${createdCount} events created.`);
+      if (result.success) {
+        alert(`Booking complete! ${result.created} events created.`);
         location.reload();
-      };
-
-      tokenClient.requestAccessToken();
+      } else {
+        alert("Error: " + result.error);
+      }
     };
   }
-</script>
+  </script>
 </body>
 </html>
