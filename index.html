@@ -170,7 +170,9 @@ function getYesterday() {
     calendarDiv.id = `calendar-${apt.a_id}`;
 
     const button = document.createElement('button');
-    button.textContent = 'Book Selected Dates';
+button.textContent = 'Book Selected Dates';
+button.classList.add('book-btn'); // ✅ added class
+
 
     container.appendChild(title);
     container.appendChild(calendarDiv);
@@ -246,7 +248,8 @@ function getYesterday() {
         calendar.render();
       });
 
-    button.onclick = async () => {
+    button.onclick = async (event) => {
+  const clickedButton = event.target;
   const payload = [];
 
   for (const a_id in allSelectedDates) {
@@ -261,20 +264,16 @@ function getYesterday() {
     return;
   }
 
-  const allButtons = document.querySelectorAll('button');
-
-  // ✅ Update all buttons: disable + change text
-  allButtons.forEach(btn => {
+  // ✅ Disable and dim all custom book buttons
+  const bookButtons = document.querySelectorAll('.book-btn');
+  bookButtons.forEach(btn => {
     btn.disabled = true;
-    btn.style.opacity = '0.6';
+    btn.classList.add('dimmed');
     btn.textContent = 'Booking...';
   });
 
-  // ✅ Special treatment for clicked button: add spinner
-  button.textContent = 'Booking...';
-  const spinner = document.createElement('span');
-  spinner.className = 'spinner';
-  button.appendChild(spinner);
+  // ✅ Only show spinner on clicked one
+  clickedButton.innerHTML = `<span class="spinner"></span> Booking...`;
 
   try {
     const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
@@ -297,6 +296,7 @@ function getYesterday() {
     alert("Network error: Unable to reach server.");
   }
 };
+
 
   }
   </script>
