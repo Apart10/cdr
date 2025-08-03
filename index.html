@@ -122,6 +122,7 @@
 
   function getYesterday() {
     const d = new Date();
+    d.setHours(0, 0, 0, 0); // zero the time to midnight today
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
   }
@@ -187,68 +188,69 @@
             }
           },
           datesSet: function() {
-  setTimeout(() => {
-    document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
-      const date = cell.getAttribute('data-date');
-      const dayDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      dayDate.setHours(0, 0, 0, 0);
+            setTimeout(() => {
+              document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
+                const date = cell.getAttribute('data-date');
+                const dayDate = new Date(date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                dayDate.setHours(0, 0, 0, 0);
 
-      const isBookableYesterday = isPastMidnight() && date === getYesterday();
+                const isBookableYesterday = isPastMidnight() && date === getYesterday();
 
-      if (dayDate < today && !isBookableYesterday) {
-        cell.classList.add('fc-day-past');
-      } else if (bookedDates.has(date)) {
-        cell.classList.add('fc-day-booked');
-      } else if (isBookableYesterday) {
-        cell.classList.add('fc-day-past-bookable');
-      } else {
-        cell.classList.add('fc-day-available');
-      }
-    });
-  }, 300);
-}
+                if (dayDate < today && !isBookableYesterday) {
+                  cell.classList.add('fc-day-past');
+                } else if (bookedDates.has(date)) {
+                  cell.classList.add('fc-day-booked');
+                } else if (isBookableYesterday) {
+                  cell.classList.add('fc-day-past-bookable');
+                } else {
+                  cell.classList.add('fc-day-available');
+                }
+              });
+            }, 300);
+          }
+        });
 
         calendar.render();
       });
 
     button.onclick = async () => {
-  const payload = [];
+      const payload = [];
 
-  for (const a_id in allSelectedDates) {
-    const dates = Array.from(allSelectedDates[a_id] || []);
-    if (dates.length > 0) {
-      payload.push({ a_id, dates });
-    }
-  }
+      for (const a_id in allSelectedDates) {
+        const dates = Array.from(allSelectedDates[a_id] || []);
+        if (dates.length > 0) {
+          payload.push({ a_id, dates });
+        }
+      }
 
-  if (payload.length === 0) {
-    alert("Please select at least one date.");
-    return;
-  }
+      if (payload.length === 0) {
+        alert("Please select at least one date.");
+        return;
+      }
 
-  try {
-    const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
+      try {
+        const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
 
-    const res = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formBody
-    });
+        const res = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formBody
+        });
 
-    const result = await res.json();
+        const result = await res.json();
 
-    if (result && result.success) {
-      alert(`Booking complete! ${result.created} events created.`);
-      location.reload();
-    } else {
-      alert("Booking failed: " + (result?.error || "Unknown error"));
-    }
-  } catch (err) {
-    alert("Network error: Unable to reach server.");
-  }
-};
+        if (result && result.success) {
+          alert(`Booking complete! ${result.created} events created.`);
+          location.reload();
+        } else {
+          alert("Booking failed: " + (result?.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Network error: Unable to reach server.");
+      }
+    };
 
   }
   </script>
