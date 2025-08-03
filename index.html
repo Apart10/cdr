@@ -80,21 +80,16 @@
 
   window.onload = loadOwnerApartments;
 
-  async function loadOwnerApartments() {
-    const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
-    const data = await res.json();
-
-    if (data.error) {
-      alert("Error: " + data.error);
-      return;
+  function getEffectiveToday() {
+    const now = new Date();
+    const effectiveToday = new Date(now);
+    const sixAM = new Date(now);
+    sixAM.setHours(6, 0, 0, 0);
+    if (now < sixAM) {
+      effectiveToday.setDate(now.getDate() - 1);
     }
-
-    document.getElementById("greetingTitle").textContent = `Hello, ${data.ownerName}`;
-
-    for (const apt of data.apartments) {
-      allSelectedDates[apt.a_id] = new Set();
-      createCalendarForApartment(apt);
-    }
+    effectiveToday.setHours(0, 0, 0, 0);
+    return effectiveToday;
   }
 
   function getDatesInRange(startStr, endStr) {
@@ -124,6 +119,23 @@
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
+  }
+
+  async function loadOwnerApartments() {
+    const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
+    const data = await res.json();
+
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+
+    document.getElementById("greetingTitle").textContent = `Hello, ${data.ownerName}`;
+
+    for (const apt of data.apartments) {
+      allSelectedDates[apt.a_id] = new Set();
+      createCalendarForApartment(apt);
+    }
   }
 
   function createCalendarForApartment(apt) {
@@ -161,8 +173,7 @@
           selectable: true,
           dateClick: function(info) {
             const dateStr = info.dateStr;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const today = getEffectiveToday();
             const clicked = new Date(dateStr);
             clicked.setHours(0, 0, 0, 0);
 
@@ -191,8 +202,7 @@
               document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
                 const date = cell.getAttribute('data-date');
                 const dayDate = new Date(date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const today = getEffectiveToday();
                 dayDate.setHours(0, 0, 0, 0);
 
                 const isBookableYesterday = isPastMidnight() && date === getYesterday();
@@ -215,42 +225,41 @@
       });
 
     button.onclick = async () => {
-  const payload = [];
+      const payload = [];
 
-  for (const a_id in allSelectedDates) {
-    const dates = Array.from(allSelectedDates[a_id] || []);
-    if (dates.length > 0) {
-      payload.push({ a_id, dates });
-    }
-  }
+      for (const a_id in allSelectedDates) {
+        const dates = Array.from(allSelectedDates[a_id] || []);
+        if (dates.length > 0) {
+          payload.push({ a_id, dates });
+        }
+      }
 
-  if (payload.length === 0) {
-    alert("Please select at least one date.");
-    return;
-  }
+      if (payload.length === 0) {
+        alert("Please select at least one date.");
+        return;
+      }
 
-  try {
-    const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
+      try {
+        const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
 
-    const res = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formBody
-    });
+        const res = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formBody
+        });
 
-    const result = await res.json();
+        const result = await res.json();
 
-    if (result && result.success) {
-      alert(`Booking complete! ${result.created} events created.`);
-      location.reload();
-    } else {
-      alert("Booking failed: " + (result?.error || "Unknown error"));
-    }
-  } catch (err) {
-    alert("Network error: Unable to reach server.");
-  }
-};
-
+        if (result && result.success) {
+          alert(`Booking complete! ${result.created} events created.`);
+          location.reload();
+        } else {
+          alert("Booking failed: " + (result?.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Network error: Unable to reach server.");
+      }
+    };
   }
   </script>
 </body>
