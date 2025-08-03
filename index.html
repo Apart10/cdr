@@ -261,13 +261,21 @@ function getYesterday() {
     return;
   }
 
-  // Disable button + show spinner
-  button.disabled = true;
-  const originalText = button.textContent;
-  button.innerHTML = 'Booking... <span class="spinner"></span>';
+  // ✅ Disable all buttons and show spinner on the clicked one
+  const allButtons = document.querySelectorAll('button');
+  allButtons.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6'; // optional: just reinforces dim
+  });
+
+  // 👇 Create and append spinner to this specific button
+  const spinner = document.createElement('span');
+  spinner.className = 'spinner';
+  button.appendChild(spinner);
 
   try {
     const formBody = 'bookings=' + encodeURIComponent(JSON.stringify(payload));
+
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -285,9 +293,11 @@ function getYesterday() {
   } catch (err) {
     alert("Network error: Unable to reach server.");
   } finally {
-    // Re-enable button & reset text
-    button.disabled = false;
-    button.textContent = originalText;
+    // Optionally re-enable all buttons (if you don’t reload page)
+    // allButtons.forEach(btn => {
+    //   btn.disabled = false;
+    //   btn.style.opacity = '';
+    // });
   }
 };
 
