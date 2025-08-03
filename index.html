@@ -80,16 +80,21 @@
 
   window.onload = loadOwnerApartments;
 
-  function getEffectiveToday() {
-    const now = new Date();
-    const effectiveToday = new Date(now);
-    const sixAM = new Date(now);
-    sixAM.setHours(6, 0, 0, 0);
-    if (now < sixAM) {
-      effectiveToday.setDate(now.getDate() - 1);
+  async function loadOwnerApartments() {
+    const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
+    const data = await res.json();
+
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
     }
-    effectiveToday.setHours(0, 0, 0, 0);
-    return effectiveToday;
+
+    document.getElementById("greetingTitle").textContent = `Hello, ${data.ownerName}`;
+
+    for (const apt of data.apartments) {
+      allSelectedDates[apt.a_id] = new Set();
+      createCalendarForApartment(apt);
+    }
   }
 
   function getDatesInRange(startStr, endStr) {
@@ -109,33 +114,17 @@
     return date.toISOString().split('T')[0];
   }
 
-  function isPastMidnight() {
+  function isBetweenMidnightAnd6AM() {
     const now = new Date();
     const hours = now.getHours();
     return hours >= 0 && hours < 6;
   }
 
-  function getYesterday() {
+  function getYesterdayDateStr() {
     const d = new Date();
     d.setDate(d.getDate() - 1);
+    d.setHours(0, 0, 0, 0);
     return d.toISOString().split('T')[0];
-  }
-
-  async function loadOwnerApartments() {
-    const res = await fetch(`${WEBAPP_URL}?owner_id=${owner_id}`);
-    const data = await res.json();
-
-    if (data.error) {
-      alert("Error: " + data.error);
-      return;
-    }
-
-    document.getElementById("greetingTitle").textContent = `Hello, ${data.ownerName}`;
-
-    for (const apt of data.apartments) {
-      allSelectedDates[apt.a_id] = new Set();
-      createCalendarForApartment(apt);
-    }
   }
 
   function createCalendarForApartment(apt) {
@@ -173,12 +162,13 @@
           selectable: true,
           dateClick: function(info) {
             const dateStr = info.dateStr;
-            const today = getEffectiveToday();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const clicked = new Date(dateStr);
             clicked.setHours(0, 0, 0, 0);
 
             const isTodayOrFuture = clicked >= today;
-            const isBookableYesterday = isPastMidnight() && dateStr === getYesterday();
+            const isBookableYesterday = isBetweenMidnightAnd6AM() && dateStr === getYesterdayDateStr();
             const isBookable = (isTodayOrFuture || isBookableYesterday) && !bookedDates.has(dateStr);
 
             if (!isBookable) return;
@@ -202,10 +192,11 @@
               document.querySelectorAll(`#calendar-${apt.a_id} .fc-daygrid-day`).forEach(cell => {
                 const date = cell.getAttribute('data-date');
                 const dayDate = new Date(date);
-                const today = getEffectiveToday();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
                 dayDate.setHours(0, 0, 0, 0);
 
-                const isBookableYesterday = isPastMidnight() && date === getYesterday();
+                const isBookableYesterday = isBetweenMidnightAnd6AM() && date === getYesterdayDateStr();
 
                 if (dayDate < today && !isBookableYesterday) {
                   cell.classList.add('fc-day-past');
