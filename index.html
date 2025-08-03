@@ -114,17 +114,18 @@
     return date.toISOString().split('T')[0];
   }
 
-  function isBetweenMidnightAnd6AM() {
+  // UPDATED: Use local time for yesterday's date and midnight checks
+  function getYesterday() {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // local midnight
+    now.setDate(now.getDate() - 1);
+    return now.toISOString().split('T')[0];
+  }
+
+  function isPastMidnight() {
     const now = new Date();
     const hours = now.getHours();
     return hours >= 0 && hours < 6;
-  }
-
-  function getYesterdayDateStr() {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().split('T')[0];
   }
 
   function createCalendarForApartment(apt) {
@@ -168,7 +169,7 @@
             clicked.setHours(0, 0, 0, 0);
 
             const isTodayOrFuture = clicked >= today;
-            const isBookableYesterday = isBetweenMidnightAnd6AM() && dateStr === getYesterdayDateStr();
+            const isBookableYesterday = isPastMidnight() && dateStr === getYesterday();
             const isBookable = (isTodayOrFuture || isBookableYesterday) && !bookedDates.has(dateStr);
 
             if (!isBookable) return;
@@ -196,7 +197,7 @@
                 today.setHours(0, 0, 0, 0);
                 dayDate.setHours(0, 0, 0, 0);
 
-                const isBookableYesterday = isBetweenMidnightAnd6AM() && date === getYesterdayDateStr();
+                const isBookableYesterday = isPastMidnight() && date === getYesterday();
 
                 if (dayDate < today && !isBookableYesterday) {
                   cell.classList.add('fc-day-past');
@@ -251,6 +252,7 @@
         alert("Network error: Unable to reach server.");
       }
     };
+
   }
   </script>
 </body>
