@@ -115,12 +115,19 @@
   }
 
   // UPDATED: Use local time for yesterday's date and midnight checks
-  function getYesterday() {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // local midnight
-    now.setDate(now.getDate() - 1);
-    return now.toISOString().split('T')[0];
-  }
+  // Replace existing getYesterday with this:
+function getYesterday() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  now.setDate(now.getDate() - 1);
+  
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
 
   function isPastMidnight() {
     const now = new Date();
