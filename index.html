@@ -56,7 +56,7 @@
     }
     button {
       display: block;
-      margin: 20px auto;
+      margin: 20px auto 0;
       background-color: #3b82f6;
       color: white;
       padding: 10px 20px;
@@ -75,7 +75,7 @@
 
   <script>
   const owner_id = new URLSearchParams(window.location.search).get('owner_id') || '';
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwWi-l3xdplyu_yxSv9c0GMn6Y902hpSfVIwSVfGchGrql6nwuejK9KYl7-PDYlHRfW/exec';
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwWi-l3xdplyu_yxSv9c0GMn6Y902hpSfVIwSVfGchGrql6nwuejK9KYl7-PDYlHRfW/exec'; // Replace this
   const allSelectedDates = {};
 
   window.onload = loadOwnerApartments;
@@ -108,12 +108,6 @@
     return dates;
   }
 
-  function getNextDay(dateStr) {
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().split('T')[0];
-  }
-
   function isPastMidnight() {
     const now = new Date();
     const hours = now.getHours();
@@ -139,6 +133,7 @@
 
     const button = document.createElement('button');
     button.textContent = 'Book Selected Dates';
+    button.onclick = bookAllSelectedDates;
 
     container.appendChild(title);
     container.appendChild(calendarDiv);
@@ -213,36 +208,35 @@
 
         calendar.render();
       });
+  }
 
-    button.onclick = async () => {
-      let createdCount = 0;
-      const payload = [];
+  async function bookAllSelectedDates() {
+    const payload = [];
 
-      for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
-        if (!datesSet.size) continue;
-        payload.push({ a_id, dates: Array.from(datesSet) });
-      }
+    for (const [a_id, datesSet] of Object.entries(allSelectedDates)) {
+      if (datesSet.size === 0) continue;
+      payload.push({ a_id, dates: Array.from(datesSet) });
+    }
 
-      if (!payload.length) {
-        alert("Please select at least one date.");
-        return;
-      }
+    if (!payload.length) {
+      alert("Please select at least one date.");
+      return;
+    }
 
-      const res = await fetch(WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookings: payload })
-      });
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookings: payload })
+    });
 
-      const result = await res.json();
+    const result = await res.json();
 
-      if (result.success) {
-        alert(`Booking complete! ${result.created} events created.`);
-        location.reload();
-      } else {
-        alert("Error: " + result.error);
-      }
-    };
+    if (result.success) {
+      alert(`Booking complete! ${result.created} events created.`);
+      location.reload();
+    } else {
+      alert("Error: " + result.error);
+    }
   }
   </script>
 </body>
